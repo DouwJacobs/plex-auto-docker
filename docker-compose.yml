@@ -1,0 +1,458 @@
+version: "3.4"
+services:
+  #Required
+
+  #Torrent Download Client
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent:latest
+    container_name: qbittorrent
+    #    network_mode: service:vpn
+    environment:
+      - PUID=${PUID} # default user id, defined in .env
+      - PGID=${PGID} # default group id, defined in .env
+      - TZ=${TZ} # timezone, defined in .env
+      - WEBUI_PORT=8080
+      - DOCKER_MODS=ghcr.io/gilbn/theme.park:qbittorrent
+      - TP_SCHEME=http
+      - TP_DOMAIN=${LOCAL_IP}:{TP_PORT}\/themepark
+      - TP_THEME=${TP_THEME}
+    volumes:
+      - ${ROOT}/downloads:/downloads # downloads folder
+      - ${ROOT}/config/qbittorrent:/config # config files
+    ports:
+      - 8080:8080
+      - 26842:26842
+      - 26842:26842/udp
+    restart: unless-stopped
+
+  #Indexer
+  prowlarr:
+    image: lscr.io/linuxserver/prowlarr:develop
+    container_name: prowlarr
+    environment:
+      - PUID=${PUID} # default user id, defined in .env
+      - PGID=${PGID} # default group id, defined in .env
+      - TZ=${TZ} # timezone, defined in .env
+      - DOCKER_MODS=ghcr.io/gilbn/theme.park:prowlarr
+      - TP_SCHEME=http
+      - TP_DOMAIN=${LOCAL_IP}:{TP_PORT}\/themepark
+      - TP_THEME=${TP_THEME}
+    volumes:
+      - ${ROOT}/config/prowlarr:/config
+    ports:
+      - 9696:9696
+    restart: unless-stopped
+
+  #Series
+  sonarr:
+    container_name: sonarr
+    image: linuxserver/sonarr:latest
+    restart: unless-stopped
+    environment:
+      - PUID=${PUID} # default user id, defined in .env
+      - PGID=${PGID} # default group id, defined in .env
+      - TZ=${TZ} # timezone, defined in .env
+      - DOCKER_MODS=ghcr.io/gilbn/theme.park:sonarr
+      - TP_SCHEME=http
+      - TP_DOMAIN=${LOCAL_IP}:{TP_PORT}\/themepark
+      - TP_THEME=${TP_THEME}
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - ${ROOT}/config/sonarr:/config # config files
+      - ${HDD_ROOT}/complete/tv:/tv # tv shows folder
+      - ${ROOT}/Setup/TitleCardMaker:/titleCardMaker
+      - ${ROOT}/downloads:/downloads # download folder
+    ports:
+      - 8989:8989
+
+  #Movies
+  radarr:
+    container_name: radarr
+    image: linuxserver/radarr:develop
+    restart: unless-stopped
+    environment:
+      - PUID=${PUID} # default user id, defined in .env
+      - PGID=${PGID} # default group id, defined in .env
+      - TZ=${TZ} # timezone, defined in .env
+      - DOCKER_MODS=ghcr.io/gilbn/theme.park:radarr
+      - TP_SCHEME=http
+      - TP_DOMAIN=${LOCAL_IP}:{TP_PORT}\/themepark
+      - TP_THEME=${TP_THEME}
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - ${ROOT}/config/radarr:/config # config files
+      - ${HDD_ROOT}/complete/movies:/movies # movies folder
+      - ${ROOT}/downloads:/downloads # download folder
+    ports:
+      - 7878:7878
+
+  #Plex Media Server
+  plex-server:
+    container_name: plex-server
+    image: linuxserver/plex:latest
+    restart: unless-stopped
+    environment:
+      - TZ=${TZ} # timezone, defined in .env
+      - DOCKER_MODS=ghcr.io/gilbn/theme.park:plex
+      - TP_SCHEME=http
+      - TP_DOMAIN=${LOCAL_IP}:{TP_PORT}\/themepark
+      - TP_THEME=${TP_THEME}
+    volumes:
+      - ${ROOT}/config/plex/db:/config # plex database
+      - ${ROOT}/config/plex/transcode:/transcode # temp transcoded files
+      - ${HDD_ROOT}/complete:/data # media library
+    devices:
+      - /dev/dri/renderD128:/dev/dri/renderD128
+      - /dev/dri/card0:/dev/dri/card0
+      - /dev/dri/card1:/dev/dri/card1
+      - /dev/dri/renderD129:/dev/dri/renderD129
+    ports:
+      - 32400:32400
+
+  #Optional
+
+  #Requests
+  overseerr:
+    image: linuxserver/overseerr:develop
+    container_name: overseerr
+    environment:
+      - LOG_LEVEL=debug
+      - TZ=${TZ} # timezone, defined in .env
+      - DOCKER_MODS=ghcr.io/gilbn/theme.park:overseerr
+      - TP_SCHEME=http
+      - TP_DOMAIN=${LOCAL_IP}:{TP_PORT}\/themepark
+      - TP_THEME=${TP_THEME}
+    ports:
+      - 5055:5055
+    volumes:
+      - ${ROOT}/config/overseerr:/config
+    restart: unless-stopped
+
+  plex-shuffler:
+    image: douwjacobs/plex-shuffler:development
+    container_name: plex-shuffler
+    environment:
+      - LOG_LEVEL=debug
+      - TZ=${TZ} # timezone, defined in .env
+    ports:
+      - 3210:3210
+    volumes:
+      - ${ROOT}/config/plex-shuffler:/app/config
+    restart: unless-stopped
+
+  #Stats for PlexMediaServer
+  tautulli:
+    image: lscr.io/linuxserver/tautulli:develop
+    container_name: tautulli
+    environment:
+      - PUID=${PUID} # default user id, defined in .env
+      - PGID=${PGID} # default group id, defined in .env
+      - TZ=${TZ} # timezone, defined in .env
+      - DOCKER_MODS=ghcr.io/gilbn/theme.park:tautulli
+      - TP_SCHEME=http
+      - TP_DOMAIN=${LOCAL_IP}:{TP_PORT}\/themepark
+      - TP_THEME=${TP_THEME}
+    volumes:
+      - ${ROOT}/config/tautulli:/config
+      - ${ROOT}/config/organizr/www/organizr/custom_html/newsletter/:/organizr_newsletter
+    ports:
+      - 8181:8181
+    restart: unless-stopped
+    env_file:
+      - stack.env
+
+  #Nginx Proxy Manager (Reverse Proxies)
+  app:
+    image: "jc21/nginx-proxy-manager:latest"
+    container_name: npm
+    ports:
+      - "80:80"
+      - "81:81"
+      - "443:443"
+    environment:
+      - DB_MYSQL_HOST=db
+      - DB_MYSQL_PORT=3306
+      - DB_MYSQL_USER=npm # Change mysql user
+      - DB_MYSQL_PASSWORD=npm # Change mysql password
+      - DB_MYSQL_NAME=npm
+      - DOCKER_MODS=ghcr.io/gilbn/theme.park:nginx-proxy-manager
+      - TP_SCHEME=http
+      - TP_DOMAIN=${LOCAL_IP}:{TP_PORT}\/themepark
+      - TP_THEME=${TP_THEME}
+    volumes:
+      - ${ROOT}/config/nginxproxymanager:/data
+      - ${ROOT}/config/nginxproxymanager/letsencrypt:/etc/letsencrypt
+    restart: unless-stopped
+
+  #DB for npm
+  db:
+    image: "jc21/mariadb-aria"
+    container_name: db
+    environment:
+      MYSQL_ROOT_PASSWORD: "npm" # Change mysql user
+      MYSQL_DATABASE: "npm"
+      MYSQL_USER: "npm" # Change mysql user
+      MYSQL_PASSWORD: "npm" # Change mysql user
+    volumes:
+      - ${ROOT}/config/nginxproxymanager/db:/var/lib/mysql
+    restart: unless-stopped
+
+  #Displays webapps in one tab
+  organizr:
+    container_name: organizr
+    image: organizr/organizr:latest
+    restart: unless-stopped
+    ports:
+      - 8001:80
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - DOCKER_MODS=ghcr.io/gilbn/theme.park:organizr
+      - TP_SCHEME=http
+      - TP_DOMAIN=${LOCAL_IP}:{TP_PORT}\/themepark
+      - TP_THEME=${TP_THEME}
+    volumes:
+      - ${ROOT}/config/organizr:/config
+      - ${ROOT}/config/tautulli/newsletters/:/newsletters
+
+  #Books
+  readarr:
+    image: lscr.io/linuxserver/readarr:develop
+    container_name: readarr
+    environment:
+      - TZ=${TZ} # timezone, defined in .env
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - DOCKER_MODS=ghcr.io/gilbn/theme.park:readarr
+      - TP_SCHEME=http
+      - TP_DOMAIN=${LOCAL_IP}:{TP_PORT}\/themepark
+      - TP_THEME=${TP_THEME}
+    volumes:
+      - ${ROOT}/config/readarr:/config
+      - ${HDD_ROOT}/complete/books:/books #optional
+      - ${HDD_ROOT}/complete/CorneBooks:/CorneBooks #optional
+      - ${ROOT}/downloads:/downloads #optional
+    ports:
+      - 8787:8787
+    restart: unless-stopped
+
+  #Organizes and sends books to kindle
+  calibre:
+    image: lscr.io/linuxserver/calibre:latest
+    container_name: calibre
+    environment:
+      - TZ=${TZ} # timezone, defined in .env
+      - PUID=${PUID}
+      - PGID=${PGID}
+    volumes:
+      - ${ROOT}/config/calibre:/config
+      - ${HDD_ROOT}/complete/books:/books #optional
+    ports:
+      - 8082:8080
+      - 8081:8081
+    restart: unless-stopped
+
+  calibre-web:
+    image: lscr.io/linuxserver/calibre-web:latest
+    container_name: calibre-web
+    environment:
+      - TZ=${TZ} # timezone, defined in .env
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - DOCKER_MODS=linuxserver/mods:universal-calibre #optional
+      - OAUTHLIB_RELAX_TOKEN_SCOPE=1 #optional
+    volumes:
+      - ${ROOT}/config/calibre-web:/config
+      - ${HDD_ROOT}/complete/books:/books
+    ports:
+      - 8083:8083
+    restart: unless-stopped
+
+  #Updates docker images
+  watchtower:
+    image: containrrr/watchtower
+    container_name: watchtower
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - TZ=${TZ} # timezone, defined in .env
+      - WATCHTOWER_SCHEDULE=0 0 3 * * *
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_RUN_ONCE=false
+    restart: unless-stopped
+
+  #Filebrowser
+  filebrowser:
+    image: filebrowser/filebrowser:s6
+    container_name: filebrowser
+    ports:
+      - 8085:80
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - DOCKER_MODS=ghcr.io/gilbn/theme.park:filebrowser
+      - TP_SCHEME=http
+      - TP_DOMAIN=${LOCAL_IP}:{TP_PORT}\/themepark
+      - TP_THEME=${TP_THEME}
+    volumes:
+      - ${ROOT}/config/filebrowser/srv:/srv
+      - ${HDD_ROOT}/complete:/srv/HDD
+      - ${ROOT}/config/:/srv/config
+      - ${ROOT}/downloads:/srv/downloads #optional
+      - ${DESKTOP}/freqtrade/:/srv/freqtrade
+      - ${ROOT}/config/filebrowser/database:/database/
+      - ${ROOT}/config/filebrowser:/config/
+      - ${ROOT}/config/filebrowser/branding:/branding
+    restart: unless-stopped
+
+  #Assigns dynamic public IP to cloudflare domain
+  cloudflare-ddns:
+    image: oznu/cloudflare-ddns:latest
+    container_name: cloudflare-ddns
+    restart: unless-stopped
+    environment:
+      - API_KEY=${CLOUDFLARE_API}
+      - ZONE=${CLOUDFLARE_DOMAIN}
+      - SUBDOMAIN=*
+      - PROXIED=false
+
+  #Organizr Themes
+  theme-park:
+    image: ghcr.io/gilbn/theme.park
+    container_name: theme-park
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - TP_URLBASE=themepark
+    volumes:
+      - ${ROOT}/config/themepark:/config #optional
+    ports:
+      - ${TP_PORT}:80
+      - 4443:443
+    restart: unless-stopped
+
+  duplicati:
+    image: lscr.io/linuxserver/duplicati:latest
+    container_name: duplicati
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - DOCKER_MODS=ghcr.io/gilbn/theme.park:duplicati
+      - TP_SCHEME=http
+      - TP_DOMAIN=${LOCAL_IP}:{TP_PORT}\/themepark
+      - TP_THEME=${TP_THEME}
+    volumes:
+      - ${ROOT}/config/duplicati/:/config
+      - ${HDD_ROOT}/backups/:/backups
+      - ${ROOT}/config/:/source
+    ports:
+      - 8200:8200
+    restart: unless-stopped
+
+  plex-meta-manager:
+    image: lscr.io/linuxserver/plex-meta-manager:latest
+    container_name: plex_meta_manager_v2
+    environment:
+      - PUID=${PUID} # default user id, defined in .env
+      - PGID=${PGID} # default group id, defined in .env
+      - TZ=${TZ} # timezone, defined in .env
+      - PMM_CONFIG=/config/config.yml #optional
+      - PMM_TIME=03:00 #optional
+      - PMM_RUN=False #optional
+      - PMM_TEST=False #optional
+      - PMM_NO_MISSING=False #optional
+    volumes:
+      - ${ROOT}/config/plex_meta_manager/:/config
+    restart: unless-stopped
+
+  titlecard-maker:
+    image: collinheist/titlecardmaker:master
+    container_name: titlecard-maker
+    environment:
+      - PUID=${PUID} # default user id, defined in .env
+      - PGID=${PGID} # default group id, defined in .env
+      - TZ=${TZ} # timezone, defined in .env
+      - TCM_MISSING=/config/missing.yml
+      - TCM_RUNTIME=03:30
+      - TCM_FREQUENCY=3h
+    volumes:
+      - ${ROOT}/config/titlecard_maker/:/config
+      - ${ROOT}/config/titlecard_maker/log:/maker/logs
+      - ${HDD_ROOT}/complete/:/Media
+      - ${HDD_ROOT}/complete/tv:/tv
+      - ${ROOT}/config/tautulli:/tautulli
+    restart: unless-stopped
+
+  jellyfin:
+    image: lscr.io/linuxserver/jellyfin:latest
+    container_name: jellyfin
+    environment:
+      - PUID=${PUID} # default user id, defined in .env
+      - PGID=${PGID} # default group id, defined in .env
+      - TZ=${TZ} # timezone, defined in .env
+    volumes:
+      - ${ROOT}/config/jellyfin:/config
+      - ${HDD_ROOT}/complete:/data
+    ports:
+      - 8096:8096
+      - 8920:8920 #optional
+    devices:
+      - /dev/dri/renderD128:/dev/dri/renderD128
+      - /dev/dri/card0:/dev/dri/card0
+      - /dev/dri/card1:/dev/dri/card1
+      - /dev/dri/renderD129:/dev/dri/renderD129
+    restart: unless-stopped
+
+  wizarr:
+    container_name: wizarr
+    image: ghcr.io/wizarrrr/wizarr
+    #user: 1000:1000 #Optional but recommended, sets the user uid that Wizarr will run with
+    ports:
+      - 5690:5690
+    volumes:
+      - ${ROOT}/config/wizarr:/data/database
+    environment:
+      - APP_URL=http://wizarr.${PUBLIC_DOMAIN} #URL at which you will access and share
+      - DISABLE_BUILTIN_AUTH=false #Set to true ONLY if you are using another auth provider (Authelia, Authentik, etc)
+      - TZ=${TZ} #Set your timezone here
+
+  sabnzbd:
+    image: lscr.io/linuxserver/sabnzbd:latest
+    container_name: sabnzbd
+    environment:
+      - PUID=${PUID} # default user id, defined in .env
+      - PGID=${PGID} # default group id, defined in .env
+      - TZ=${TZ} # timezone, defined in .env
+      - DOCKER_MODS=ghcr.io/gilbn/theme.park:sabnzbd
+      - TP_SCHEME=http
+      - TP_DOMAIN=${LOCAL_IP}:{TP_PORT}\/themepark
+      - TP_THEME=${TP_THEME}
+    volumes:
+      - ${ROOT}/config/sabnzbd:/config
+      - ${ROOT}/downloads:/downloads #optional
+    ports:
+      - 8888:8080
+    restart: unless-stopped
+
+    #Subtitles
+  bazarr:
+    container_name: bazarr
+    image: linuxserver/bazarr
+    restart: unless-stopped
+    environment:
+      - PUID=${PUID} # default user id, defined in .env
+      - PGID=${PGID} # default group id, defined in .env
+      - TZ=${TZ} # timezone, defined in .env
+      - UMASK_SET=022 #optional
+      - DOCKER_MODS=ghcr.io/gilbn/theme.park:bazarr
+      - TP_SCHEME=http
+      - TP_DOMAIN=${LOCAL_IP}:{TP_PORT}\/themepark
+      - TP_THEME=${TP_THEME}
+    volumes:
+      - ${ROOT}/config/bazarr:/config # config files
+      - ${HDD_ROOT}/complete/movies:/movies # movies folder
+      - ${HDD_ROOT}/complete/tv:/tv # tv shows folder
+    ports:
+      - 6767:6767
